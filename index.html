@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Consulta IMEI - Sistema de Controle Patrimonial</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, sans-serif; background: #f0f0f0; color: #333; min-height: 100vh; display: flex; flex-direction: column; }
+.top-bar { background: #003366; color: #fff; padding: 8px 20px; font-size: 12px; text-align: right; }
+.header { background: #004080; color: #fff; padding: 20px 0; border-bottom: 4px solid #ffcc00; }
+.header-inner { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+.header h1 { font-size: 22px; font-weight: normal; }
+.header h1 span { color: #ffcc00; }
+.header h2 { font-size: 14px; font-weight: normal; color: #c0d0e0; margin-top: 4px; }
+.sub-header { background: #e8eef4; border-bottom: 1px solid #ccc; padding: 10px 20px; font-size: 13px; color: #555; }
+.sub-header a { color: #004080; text-decoration: none; }
+.container { max-width: 960px; margin: 30px auto; padding: 0 20px; flex: 1; }
+.panel { background: #fff; border: 1px solid #c0c0c0; border-radius: 4px; padding: 30px; }
+.panel h3 { font-size: 16px; margin-bottom: 20px; color: #003366; }
+.form-row { margin-bottom: 15px; }
+.form-row label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #333; }
+.form-row input[type="text"] { width: 100%; max-width: 300px; padding: 8px 10px; border: 1px solid #aaa; border-radius: 3px; font-size: 15px; font-family: monospace; letter-spacing: 1px; }
+.form-row input[type="text"]:focus { outline: none; border-color: #004080; box-shadow: 0 0 4px rgba(0,64,128,0.3); }
+.btn { background: #004080; color: #fff; border: none; padding: 10px 30px; font-size: 14px; border-radius: 3px; cursor: pointer; }
+.btn:hover { background: #003366; }
+.btn:disabled { background: #999; cursor: not-allowed; }
+.result-box { margin-top: 25px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; display: none; }
+.result-box table { width: 100%; border-collapse: collapse; }
+.result-box th { background: #f5f5f5; padding: 10px; font-size: 12px; text-align: left; border-bottom: 2px solid #ddd; }
+.result-box td { padding: 12px 10px; font-size: 14px; border-bottom: 1px solid #eee; }
+.result-box .status-impedido { color: #cc0000; font-weight: bold; }
+.result-box .status-livre { color: #008800; font-weight: bold; }
+.blocked-banner { background: #ffebee; border: 2px solid #cc0000; border-radius: 4px; padding: 20px; margin-top: 25px; display: none; }
+.blocked-banner h4 { color: #cc0000; font-size: 20px; margin-bottom: 8px; }
+.blocked-banner p { font-size: 14px; color: #333; }
+.loading { text-align: center; padding: 30px; display: none; }
+.loading .spinner { border: 3px solid #f0f0f0; border-top: 3px solid #004080; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.footer { background: #003366; color: #999; text-align: center; padding: 15px; font-size: 11px; margin-top: auto; }
+.footer a { color: #80b0d0; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">Sistema de Consulta Patrimonial - Versao 2.4.1 | &Uacute;ltima atualiza&ccedil;&atilde;o: 29/05/2026 12:21:47</div>
+
+<div class="header">
+<div class="header-inner">
+<h1><span>CGSI</span> - Consulta de Aparelhos</h1>
+<h2>Secretaria de Controle Patrimonial &bull; Minist&eacute;rio da Gest&atilde;o</h2>
+</div>
+</div>
+
+<div class="sub-header">
+<a href="/">In&iacute;cio</a> &raquo; Consultar IMEI
+</div>
+
+<div class="container">
+
+<div class="panel">
+<h3>Consultar situa&ccedil;&atilde;o do aparelho</h3>
+<p style="font-size: 13px; margin-bottom: 20px; color: #666;">
+Informe o n&uacute;mero IMEI do dispositivo para verificar sua situa&ccedil;&atilde;o na base de bloqueios.
+</p>
+
+<div class="form-row">
+<label for="imeiInput">IMEI (14 primeiros d&iacute;gitos)</label>
+<input type="text" id="imeiInput" maxlength="14" placeholder="00000000000000" autocomplete="off" />
+</div>
+
+<div class="form-row">
+<div id="captcha-box" style="margin-bottom: 10px;">
+<div style="background: #f8f8f8; border: 1px solid #ddd; border-radius: 3px; padding: 10px; max-width: 304px; display: flex; align-items: center; gap: 10px;">
+<input type="checkbox" id="fakeCheck" style="transform: scale(1.2);" />
+<label for="fakeCheck" style="font-size: 13px; cursor: pointer;">N&atilde;o sou um rob&ocirc;</label>
+</div>
+</div>
+</div>
+
+<button class="btn" id="btnConsultar" onclick="consultar()">Consultar</button>
+
+<div class="loading" id="loading">
+<div class="spinner"></div>
+<p style="margin-top: 10px; font-size: 13px; color: #666;">Consultando base de dados...</p>
+</div>
+
+<div class="result-box" id="resultBox">
+<table>
+<thead>
+<tr>
+<th>IMEI</th>
+<th>Resultado</th>
+<th>Data da Consulta</th>
+<th>Respons&aacute;vel</th>
+</tr>
+</thead>
+<tbody id="resultBody"></tbody>
+</table>
+</div>
+
+<div class="blocked-banner" id="blockedBanner">
+<h4>&#9888; APARELHO IMPEDIDO</h4>
+<p>Este dispositivo apresenta restri&ccedil;&atilde;o de uso na rede devido a bloqueio por perda, roubo, furto ou extravio registrado junto &agrave; operadora.</p>
+<p style="margin-top: 8px; font-size: 12px; color: #666;">Caso seja o propriet&aacute;rio, procure a operadora respons&aacute;vel para regulariza&ccedil;&atilde;o.</p>
+</div>
+
+</div>
+
+</div>
+
+<div class="footer">
+Sistema de Consulta Patrimonial &mdash; CGSI &copy; 2026 &mdash; <a href="#">Termos de Uso</a> &mdash; <a href="#">Privacidade</a>
+</div>
+
+<script>
+function consultar() {
+    var imei = document.getElementById('imeiInput').value.replace(/\D/g, '');
+    if (imei.length < 14) {
+        alert('Informe pelo menos 14 d�gitos do IMEI.');
+        return;
+    }
+
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('resultBox').style.display = 'none';
+    document.getElementById('blockedBanner').style.display = 'none';
+    document.getElementById('btnConsultar').disabled = true;
+
+    var operadoras = ['CLARO', 'VIVO', 'TIM', 'OI', 'ALGAR', 'SERCOMTEL'];
+    var op = operadoras[Math.floor(Math.random() * operadoras.length)];
+
+    setTimeout(function() {
+        document.getElementById('loading').style.display = 'none';
+
+        var now = new Date();
+        var dateStr = now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        document.getElementById('resultBody').innerHTML =
+            '<tr>' +
+            '<td>' + imei + '</td>' +
+            '<td class="status-impedido">IMPEDIDO</td>' +
+            '<td>' + dateStr + '</td>' +
+            '<td>' + op + '</td>' +
+            '</tr>';
+
+        document.getElementById('resultBox').style.display = 'block';
+        document.getElementById('blockedBanner').style.display = 'block';
+        document.getElementById('btnConsultar').disabled = false;
+    }, 2500);
+}
+
+document.getElementById('imeiInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') consultar();
+});
+</script>
+
+</body>
+</html>
